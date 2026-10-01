@@ -67,18 +67,28 @@ def main() -> int:
         print(f"           compute capability sm_{major}{minor}")
         print(f"           {total / 1024**3:.1f} GB total, {free / 1024**3:.1f} GB free")
 
-        # A build that has no cubin for this card still usually runs (the driver falls
-        # back to the nearest lower cubin or JITs from PTX), so this is informational.
-        arch = torch.cuda.get_arch_list()
-        exact = f"sm_{major}{minor}" in arch
-        if exact:
-            print(f"           native cubin present: yes")
+        # Is this build actually compiled for a card like this one? A build whose
+        # highest cubin is older than the card cannot run on it, and torch still
+        # reports CUDA as available in that case, so this comparison is the only
+        # thing that catches it. The rule lives in gpu_compat.py so that this check
+        # and the installer cannot disagree.
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from gpu_compat import evaluate
+            usable, reason, detail = evaluate(torch.cuda.get_arch_list(),
+                                              (major, minor))
+        except Exception as exc:                            # noqa: BLE001
+            usable, reason, detail = True, "unknown", f"could not evaluate: {exc}"
+
+        if usable:
+            print(f"           build support: {detail}")
         else:
-            lower = [a for a in arch if a.startswith("sm_")
-                     and int(a.split("_")[1]) // 10 == major
-                     and int(a.split("_")[1]) % 10 <= minor]
-            print(f"           native cubin present: no"
-                  f"  (nearest lower {lower[-1] if lower else 'none'}; normal)")
+            print(f"    [FAIL] this PyTorch build cannot run on {props.name}")
+            print(f"           {detail}")
+            need = "cu128" if major >= 9 else "cu118"
+            print(f"           fix:  $env:LPR_CUDA='{need}';"
+                  f" powershell -ExecutionPolicy Bypass -File tools\\setup.ps1 -Reinstall")
+            fails += 1
     else:
         print("    [FAIL] no CUDA device visible to torch")
         # The usual cause is a CUDA build that cannot target this card's architecture:
