@@ -1,0 +1,45 @@
+# --- model weights: never commit these ---------------------------------------
+# ~667 MB, and the insightface ones are non-commercial-only. Users fetch them with
+# `python tools/download_weights.py` instead.
+LivePortrait/pretrained_weights/*
+!LivePortrait/pretrained_weights/.gitkeep
+
+# --- personal photos: the whole point of this file ---------------------------
+# Anything matching `sample*` is a bundled sample and IS tracked (see the negations).
+# Everything else is your own face and must not end up in a public repo.
+portraits/*
+!portraits/README.md
+!portraits/PUT_YOUR_PHOTO_HERE.txt
+!portraits/sample.jpg
+!portraits/sample2.jpg
+!portraits/sample3.PNG
+
+# --- things the app writes while running ------------------------------------
+output/
+.cache/
+*.part
+
+# --- python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+envs/
+
+# --- fetched by the one-click setup, never committed -------------------------
+# The installer writes ~3 GB of third-party wheels here so the dependency install
+# needs the network only once. Redistributing them in the repo would be both huge and
+# a licensing question we do not need to take on -- users fetch them with
+# `python tools/fetch_wheels.py`.
+.venv-wheels/
+
+# a Python installer, if the setup script downloaded one
+python-3.10*.exe
+
+# --- editors / os -----------------------------------------------------------
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.swp

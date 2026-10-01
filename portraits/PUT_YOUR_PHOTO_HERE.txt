@@ -1,0 +1,11 @@
+Save your portrait here as  my_face.jpg  (or my_face.png).
+Scripts 1 and 3 will pick it up automatically.
+
+Choosing a good photo:
+  * frontal face, looking at the camera
+  * whole head visible (do not crop the chin)
+  * face fills a good part of the frame
+  * even lighting, no heavy shadows
+  * 512px or larger on the short side
+
+Avoid: profile views, looking down, sunglasses, very small faces.

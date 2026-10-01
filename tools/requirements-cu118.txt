@@ -1,0 +1,17 @@
+# CUDA 11.8 stack -- for compute capability 7.5 up to 8.9.
+#
+#   sm_75  RTX 20 series / T4
+#   sm_80  A100
+#   sm_86  RTX 30 series
+#   sm_89  RTX 40 series   <- measured fastest here (native cubin)
+#
+# torch 2.1.0+cu118 ships with the CUDA 11.8 runtime inside the wheel
+# (cudart64_110, cublasLt64_11, cudnn64_8), so the target machine needs only an NVIDIA
+# driver -- no CUDA Toolkit install.
+#
+# onnxruntime-gpu 1.18 is built against CUDA 11.8 + cuDNN 8, which matches. Do not raise
+# it here: 1.19+ needs the CUDA 12 runtime and fails with a missing cublasLt64_12.dll.
+
+torch==2.1.0+cu118
+torchvision==0.16.0+cu118
+onnxruntime-gpu==1.18.0

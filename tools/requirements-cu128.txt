@@ -1,0 +1,31 @@
+# CUDA 12.8 stack -- required for compute capability 9.0 and above.
+#
+#   sm_90   H100
+#   sm_100  B100 / B200
+#   sm_120  RTX 50 series (Blackwell)
+#
+# Why this file exists
+# --------------------
+# CUDA 11.8 physically cannot compile for sm_120, so the cu118 stack can never run on an
+# RTX 50 card. torch reports:
+#
+#   UserWarning: NVIDIA GeForce RTX 5070 Laptop GPU with CUDA capability sm_120 is not
+#   compatible with the current PyTorch installation. The current PyTorch install supports
+#   CUDA capabilities sm_37 ... sm_90
+#
+# torch 2.7.0+cu128 is the first build that carries sm_120, and its Windows wheels bundle
+# the whole CUDA 12.8 runtime (cudart64_12, cublasLt64_12, cudnn64_9, ...), so no separate
+# nvidia-* packages are needed and no toolkit install is required.
+#
+# onnxruntime-gpu must move to 1.22 here: 1.18 is linked against CUDA 11.8 + cuDNN 8 and
+# fails against the CUDA 12.8 / cuDNN 9 libraries that torch puts on PATH --
+# "CUDA_PATH is set but CUDA wasnt able to be loaded". 1.22 is built for CUDA 12 + cuDNN 9
+# and was verified working with this torch build.
+#
+# Note on performance: this build has no sm_89 cubin, so on an RTX 40 card the driver falls
+# back to the sm_86 binary -- measured about 12% slower than cu118 there. That is why the
+# installer picks cu118 for sm_75/80/86/89 and only uses cu128 when the card needs it.
+
+torch==2.7.0+cu128
+torchvision==0.22.0+cu128
+onnxruntime-gpu==1.22.0

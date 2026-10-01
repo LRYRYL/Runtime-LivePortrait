@@ -1,0 +1,31 @@
+# Runtime dependencies shared by every CUDA variant.
+#
+# Consumed by tools/fetch_wheels.py, which downloads these plus their transitive
+# dependencies so the install itself needs no further network access.
+#
+# CUDA-specific packages (torch, torchvision, onnxruntime-gpu) deliberately live in
+# requirements-cu118.txt / requirements-cu128.txt instead: their versions are tied to
+# the GPU's compute capability, and mixing them here would let pip resolve a
+# combination that cannot run.
+
+numpy==1.26.4
+pyyaml==6.0.1
+opencv-python==4.10.0.84
+scipy==1.13.1
+imageio==2.34.2
+tqdm==4.66.4
+rich==13.7.1
+scikit-image==0.24.0
+albumentations==1.4.10
+matplotlib==3.9.0
+imageio-ffmpeg==0.5.1
+tyro==0.8.5
+pykalman==0.9.7
+pillow>=10.2.0
+onnx==1.16.1
+transformers==4.38.0
+
+# Windows only. app.py installs a SetConsoleCtrlHandler so the privacy cleanup runs when
+# the console window is closed; without this it falls back to atexit, which cannot run on
+# a window close, and the user's uploaded photos would survive a shutdown.
+pywin32>=306
