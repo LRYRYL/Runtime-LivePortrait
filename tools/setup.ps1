@@ -60,6 +60,26 @@ function Warn($m) { Write-Host "  [WARN] $m" -ForegroundColor Yellow }
 function Bad($m)  { Write-Host "  [FAIL] $m" -ForegroundColor Red }
 function Info($m) { Write-Host "         $m" }
 
+# Stops the run with something a non-expert can act on, instead of a stack trace or a
+# vague failure several GB into the download.
+function Abort-With([string]$problem, [string[]]$fixes) {
+    Write-Host ''
+    Write-Host '============================================================' -ForegroundColor Red
+    Write-Host '  Cannot continue on this PC' -ForegroundColor Red
+    Write-Host '============================================================' -ForegroundColor Red
+    Write-Host ''
+    Write-Host "  Problem: $problem" -ForegroundColor Yellow
+    Write-Host ''
+    if ($fixes) {
+        Write-Host '  What to do:'
+        foreach ($f in $fixes) { Write-Host "    - $f" }
+        Write-Host ''
+    }
+    Write-Host '  Nothing was installed. Nothing was changed.' -ForegroundColor DarkGray
+    Write-Host ''
+    exit 1
+}
+
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor White
 Write-Host '  Runtime-LivePortrait  -  one-click setup' -ForegroundColor White
@@ -67,6 +87,84 @@ Write-Host '============================================================' -Foreg
 Info "project : $Root"
 Info "venv    : $Venv"
 if ($Offline) { Warn 'LPR_OFFLINE=1 - nothing will be downloaded' }
+
+# ------------------------------------------------------------- preflight checks
+# Everything here is checked BEFORE anything is downloaded, because the download is
+# several GB and a beginner should not have to wait for it to discover their PC cannot
+# run the app at all.
+Head 'Preflight checks'
+
+# 1) 64-bit Windows
+$is64 = [Environment]::Is64BitOperatingSystem
+if ($is64) {
+    Ok "Windows 64-bit"
+} else {
+    Abort-With 'This is a 32-bit Windows installation.' @(
+        'The GPU libraries this project needs are 64-bit only.',
+        'Install 64-bit Windows 10 or 11, then run this again.'
+    )
+}
+
+# 2) an NVIDIA GPU must exist -- there is no fallback, so say so plainly
+$smi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+$gpuName = ''
+$capMajor = $null
+$capMinor = $null
+$vramGB = 0.0
+
+if (-not $smi) {
+    Abort-With 'No NVIDIA graphics card was detected.' @(
+        'This project needs an NVIDIA GPU. AMD and Intel graphics are not supported,',
+        'and there is no CPU-only mode -- it would be far too slow to be usable.',
+        'If you DO have an NVIDIA card, install its driver from nvidia.com and retry:',
+        'the driver provides nvidia-smi, which this check looks for.'
+    )
+}
+
+try {
+    $line = (& $smi.Source --query-gpu=name,compute_cap,memory.total --format=csv,noheader 2>$null |
+             Select-Object -First 1)
+    if ($line -match '^\s*([^,]+),\s*(\d+)\.(\d+),\s*(\d+)\s*MiB') {
+        $gpuName  = $Matches[1].Trim()
+        $capMajor = [int]$Matches[2]
+        $capMinor = [int]$Matches[3]
+        $vramGB   = [double]$Matches[4] / 1024
+    }
+} catch { }
+
+if (-not $gpuName) {
+    Warn 'nvidia-smi is present but did not report a usable GPU.'
+    Warn 'The graphics driver may be missing or too old -- this often still installs,'
+    Warn 'but the app will not be able to run. Consider updating the driver first.'
+} elseif ($capMajor -lt 6) {
+    Abort-With "$gpuName is too old (compute capability sm_$capMajor$capMinor)." @(
+        'PyTorch needs at least sm_60, and this project is tested from RTX 20 series up.',
+        'A GTX 10-series or older card will not work.'
+    )
+} elseif ($vramGB -gt 0 -and $vramGB -lt 6) {
+    Abort-With "$gpuName has only $([math]::Round($vramGB,1)) GB of VRAM." @(
+        'At least 6 GB of VRAM is required.',
+        'The models themselves need roughly 1.3 GB, but the camera pipeline and the',
+        'browser need more on top of that.',
+        'A 4 GB card is not supported.'
+    )
+} else {
+    Ok "$gpuName  (sm_$capMajor$capMinor, $([math]::Round($vramGB,1)) GB)"
+}
+
+# 3) disk space -- measured need is roughly 10 GB in total
+$needGB = 10
+$drive = (Get-Item $Root).PSDrive
+$freeGB = [math]::Round($drive.Free / 1GB, 1)
+if ($freeGB -lt $needGB) {
+    Warn "only $freeGB GB free on $($drive.Name): -- about $needGB GB is needed."
+    Warn 'The dependency download alone is roughly 3 GB, plus about 5 GB for .venv'
+    Warn 'and 0.6 GB for the model weights. Free up some space and run this again.'
+} else {
+    Ok "$freeGB GB free on $($drive.Name):  (about $needGB GB needed)"
+}
+
+Write-Host ''
 
 # ---------------------------------------------------------- 0) pick the CUDA stack
 #  No single PyTorch build covers every NVIDIA architecture: cu118 stops at sm_90 and
