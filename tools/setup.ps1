@@ -352,14 +352,30 @@ if ($LASTEXITCODE -ne 0) { Bad "$stack install failed"; exit 5 }
 if ($LASTEXITCODE -ne 0) { Bad 'dependency install failed'; exit 5 }
 Ok 'dependencies installed'
 
-# A wrong stack is silent otherwise: torch imports fine, and only the GPU is unusable.
+# Verify the build that got installed can actually target this GPU.
+# `torch.cuda.is_available()` is not enough: on a card whose architecture the build was
+# never compiled for, torch still reports CUDA as available and only emits a warning at
+# run time --
+#     UserWarning: ... RTX 5070 ... sm_120 is not compatible with the current PyTorch
+#     installation. The current PyTorch install supports ... sm_90
+# -- which the user then has to interpret. This turns it into an explicit failure.
 $verify = & $VenvPy -c "import torch;print(torch.__version__, torch.version.cuda, torch.cuda.is_available())" 2>&1
 Info "torch: $verify"
-if ($verify -notmatch 'True') {
-    Bad 'torch reports CUDA is NOT available.'
-    Info "This machine was given the $stack stack. If that is wrong, re-run with:"
-    Info "  `$env:LPR_CUDA='cu128'; .\tools\setup.ps1 -Reinstall"
-    Info 'An RTX 50 (sm_120) card requires cu128; cu118 cannot target it.'
+
+$compat = & $VenvPy (Join-Path $Tools 'gpu_check_installed.py') --expect $stack 2>&1
+$compatLine = ($compat | Select-Object -Last 1)
+if ($compatLine -like 'OK|*') {
+    Ok ($compatLine -replace '^OK\|', '')
+} else {
+    Bad (($compatLine -replace '^FAIL\|', '') -replace 'NVIDIA GeForce ', '')
+    Info ''
+    Info "The installed stack is $stack, which does not fit this GPU."
+    $need = if ($capMajor -ge 9) { 'cu128' } else { 'cu118' }
+    Info "Reinstall with the right one:"
+    Info "  `$env:LPR_CUDA='$need'; powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -Reinstall"
+    Info 'If that still fails, the NVIDIA driver is probably too old for this card:'
+    Info 'update it from nvidia.com and run the command again.'
+    exit 7
 }
 
 # ---------------------------------------------------------------- 5) weights
