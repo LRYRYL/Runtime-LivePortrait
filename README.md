@@ -53,9 +53,6 @@ LivePortrait 官方提供的是**研究代码**：吃文件、吐文件、每次
 > 这是**算力敏感型**任务，帧率大致随 GPU 算力线性变化 —— 换更弱的显卡会更慢，
 > 这是预期行为而**不是 bug**。
 >
-> 已实测排除的提速路径（ONNX / TensorRT / fp16 / 降分辨率）见
-> [docs/PERFORMANCE.md](docs/PERFORMANCE.md)。
->
 > 觉得帧率异常低时，双击 **`测速.bat`**（或跑 `tools/speed_probe.py`），
 > 它会分项报告 GPU 频率、onnxruntime 是否掉回 CPU、逐阶段耗时。
 

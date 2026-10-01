@@ -6,7 +6,7 @@ and tested standalone first so the integration is not debugged through a GUI.
 
 The class deliberately mirrors the shape of a Deep-Live-Cam frame processor's
 needs: `start()`, `process(frame_bgr) -> frame_bgr`, `stop()`, plus a `ready`
-flag. See docs/INTEGRATION.md.
+flag.
 """
 from __future__ import annotations
 

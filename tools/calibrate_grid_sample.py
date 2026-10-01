@@ -18,8 +18,8 @@ position and the value read meant something else. That produced a confident, wro
 conclusion ("torch does true trilinear sampling"), which sent the implementation
 down the wrong path and cost three failed attempts.
 
-Corrected finding (see docs/ONNX_BLOCKER.md)
---------------------------------------------
+Corrected finding
+-----------------
 All three axes follow the standard `align_corners=False` mapping
 `index = (coord + 1) * S / 2 - 0.5`. The only deviation is AT |coord| = 1, where the
 coordinate lands out of range and torch's zero-padding rule applies.
