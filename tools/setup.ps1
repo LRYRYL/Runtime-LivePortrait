@@ -288,10 +288,10 @@ if ($missing.Count -eq 0) {
     exit 6
 } else {
     Warn "downloading $($missing.Count) weight file(s) - about 667 MB"
-    & $VenvPy (Join-Path $Tools 'download_weights.py') --mirror
+    & $VenvPy (Join-Path $Tools 'download_weights.py')
     if ($LASTEXITCODE -ne 0) {
         Bad 'weight download failed'
-        Info "Retry:  `"$VenvPy`" `"$Tools\download_weights.py`" --mirror"
+        Info "Retry:  `"$VenvPy`" `"$Tools\download_weights.py`""
         exit 6
     }
     $still = @($required | Where-Object { -not (Test-Path (Join-Path $Wt $_)) })

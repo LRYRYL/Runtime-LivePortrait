@@ -34,6 +34,13 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+try:
+    import requests                     # declared dependency; used so 308 redirects work
+except ImportError:                     # pragma: no cover
+    requests = None
+
+USER_AGENT = "Runtime-LivePortrait/1.0"
+
 ROOT = Path(__file__).resolve().parent.parent
 DEST = ROOT / "LivePortrait" / "pretrained_weights"
 
@@ -85,25 +92,63 @@ def human(n: float) -> str:
 
 
 def fetch(url: str, dest: Path) -> None:
-    """Stream to a .part file, then rename, so an interrupted run cannot look complete."""
+    """Stream to a .part file, then rename, so an interrupted run cannot look complete.
+
+    Uses `requests` rather than urllib because hf-mirror.com answers with a
+    **308 Permanent Redirect**, and urllib's default opener raises
+    `HTTP Error 308` instead of following it -- for a 3.2 MB file as much as a 211 MB
+    one, so the whole mirror was unusable. requests follows 308 transparently.
+
+    Downloaded by hand rather than with `urlretrieve` so the caller gets real progress
+    output for a 628 MB transfer.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
-    req = urllib.request.Request(url, headers={"User-Agent": "Runtime-LivePortrait/1.0"})
-    with urllib.request.urlopen(req, timeout=60) as r, tmp.open("wb") as out:
-        total = int(r.headers.get("Content-Length") or 0)
-        got = 0
-        last = -1
-        while True:
-            b = r.read(1 << 20)
-            if not b:
-                break
-            out.write(b)
-            got += len(b)
-            pct = int(got * 100 / total) if total else 0
-            if pct // 5 != last // 5 or got == total:
-                last = pct
-                sys.stdout.write(f"\r      {human(got)} / {human(total)}  {pct:3d}%")
-                sys.stdout.flush()
+    headers = {"User-Agent": USER_AGENT}
+
+    if requests is not None:
+        with requests.get(url, headers=headers, stream=True, timeout=(30, 300),
+                          allow_redirects=True) as r:
+            r.raise_for_status()
+            total = int(r.headers.get("Content-Length") or 0)
+            got = 0
+            last = -1
+            with tmp.open("wb") as out:
+                for chunk in r.iter_content(1 << 20):
+                    if not chunk:
+                        continue
+                    out.write(chunk)
+                    got += len(chunk)
+                    pct = int(got * 100 / total) if total else 0
+                    if pct // 5 != last // 5 or (total and got >= total):
+                        last = pct
+                        sys.stdout.write(f"\r      {human(got)} / {human(total)}  {pct:3d}%")
+                        sys.stdout.flush()
+    else:
+        # requests is a declared dependency, so this path is only a safety net; follow
+        # redirects explicitly since that is exactly what breaks on the mirror.
+        class Follow(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+                return urllib.request.Request(newurl, headers=headers)
+
+        opener = urllib.request.build_opener(Follow)
+        req = urllib.request.Request(url, headers=headers)
+        with opener.open(req, timeout=60) as r, tmp.open("wb") as out:
+            total = int(r.headers.get("Content-Length") or 0)
+            got = 0
+            last = -1
+            while True:
+                b = r.read(1 << 20)
+                if not b:
+                    break
+                out.write(b)
+                got += len(b)
+                pct = int(got * 100 / total) if total else 0
+                if pct // 5 != last // 5 or got == total:
+                    last = pct
+                    sys.stdout.write(f"\r      {human(got)} / {human(total)}  {pct:3d}%")
+                    sys.stdout.flush()
+
     sys.stdout.write("\r" + " " * 44 + "\r")
     tmp.replace(dest)
 
@@ -111,13 +156,26 @@ def fetch(url: str, dest: Path) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--host", choices=list(HOSTS), default=None,
+                    help="which source to use; default is the hf-mirror.com mirror")
+    ap.add_argument("--official", action="store_true",
+                    help="use huggingface.co instead of the hf-mirror.com mirror")
     ap.add_argument("--mirror", action="store_true",
-                    help="download from hf-mirror.com instead of huggingface.co")
+                    help="(kept for compatibility; the mirror is already the default)")
     ap.add_argument("--check", action="store_true",
                     help="only report which files are present/missing")
     args = ap.parse_args()
 
-    host = HOSTS["mirror" if args.mirror else "hf"]
+    # The mirror is the default: it is reachable from mainland China, where
+    # huggingface.co is frequently blocked, and it carries the identical files (the
+    # SHA-256 checks below prove that on every run).
+    if args.host:
+        choice = args.host
+    elif args.official:
+        choice = "hf"
+    else:
+        choice = "mirror"
+    host = HOSTS[choice]
     print("=" * 66)
     print("  LivePortrait weights")
     print("=" * 66)
