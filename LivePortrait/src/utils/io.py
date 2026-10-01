@@ -9,10 +9,32 @@ import cv2; cv2.setNumThreads(0); cv2.ocl.setUseOpenCL(False)
 from .helper import mkdir, suffix
 
 
+def imread_unicode(path: str, flags: int = cv2.IMREAD_COLOR):
+    """cv2.imread that survives a non-ASCII path.
+
+    OpenCV's imread passes the filename to its C++ layer as bytes, so on Windows a path
+    containing non-ASCII characters -- for example `D:\\我的软件\\...` -- is not found even
+    though the file is right there:
+
+        [WARN] global loadsave.cpp:241 cv::findDecoder imread_('...mask_template.png'):
+        can't open/read file: check file path/integrity
+
+    Reading the bytes ourselves and decoding from memory avoids the issue entirely.
+    Returns None on failure, exactly like cv2.imread, so callers are unchanged.
+    """
+    try:
+        buf = np.fromfile(path, dtype=np.uint8)
+        if buf.size == 0:
+            return None
+        return cv2.imdecode(buf, flags)
+    except (OSError, ValueError):
+        return None
+
+
 def load_image_rgb(image_path: str):
     if not osp.exists(image_path):
         raise FileNotFoundError(f"Image not found: {image_path}")
-    img = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    img = imread_unicode(image_path, cv2.IMREAD_COLOR)
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
@@ -75,9 +97,9 @@ def load_img_online(obj, mode="bgr", **kwargs):
     n = kwargs.get("n", 2)
     if isinstance(obj, str):
         if mode.lower() == "gray":
-            img = cv2.imread(obj, cv2.IMREAD_GRAYSCALE)
+            img = imread_unicode(obj, cv2.IMREAD_GRAYSCALE)
         else:
-            img = cv2.imread(obj, cv2.IMREAD_COLOR)
+            img = imread_unicode(obj, cv2.IMREAD_COLOR)
     else:
         img = obj
 

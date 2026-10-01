@@ -10,6 +10,7 @@ import pickle as pkl
 from dataclasses import dataclass, field
 from typing import Literal, Tuple
 from .base_config import PrintableConfig, make_abs_path
+from ..utils.io import imread_unicode
 
 def load_lip_array():
     with open(make_abs_path('../utils/resources/lip_array.pkl'), 'rb') as f:
@@ -66,6 +67,10 @@ class InferenceConfig(PrintableConfig):
     crf: int = 15  # crf for output video
     output_fps: int = 25 # default output fps
 
-    mask_crop: ndarray = field(default_factory=lambda: cv2.imread(make_abs_path('../utils/resources/mask_template.png'), cv2.IMREAD_COLOR))
+    # Read through imread_unicode, not cv2.imread: this path sits under the project
+    # folder, and cv2.imread cannot open a non-ASCII path on Windows. A user who
+    # installed to e.g. D:\我的软件\... got `mask_crop = None`, which either breaks
+    # paste-back outright or silently drops the blending mask depending on settings.
+    mask_crop: ndarray = field(default_factory=lambda: imread_unicode(make_abs_path('../utils/resources/mask_template.png'), cv2.IMREAD_COLOR))
     lip_array: ndarray = field(default_factory=load_lip_array)
     size_gif: int = 256 # default gif size, TO IMPLEMENT
