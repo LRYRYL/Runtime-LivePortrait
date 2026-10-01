@@ -11,6 +11,8 @@
 >   详见 **[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)**。
 > - 请勿用于未经同意的换脸、冒充或任何违法用途。
 
+> 本项目由 **LRYRYL（闰聿）** 开发，**使用 DeepSeek V4.1 Flash 编写**。
+
 ---
 
 ![界面截图](docs/screenshot.png)
@@ -306,7 +308,7 @@ python tools\build_portable.py --from-runtime <某个可用的 python 环境> --
 
 - [LivePortrait](https://github.com/KwaiVGI/LivePortrait) — KwaiVGI / Kuaishou（MIT）
 - [InsightFace](https://github.com/deepinsight/insightface) — buffalo_l 模型
-- 本项目由 **LRYRYL（闰聿）** 开发
+- 本项目由 **LRYRYL（闰聿）** 开发，**使用 DeepSeek V4.1 Flash 编写**
 
 ## 免责声明
 
