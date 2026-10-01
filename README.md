@@ -29,16 +29,16 @@
 LivePortrait 官方提供的是**研究代码**：吃文件、吐文件、每次重算源图。
 本项目把它做成能**实时用起来**的东西，并且把几件容易被忽略的事补上了：
 
-| 工作 | 说明 |
+| 功能 | 说明 |
 |---|---|
-| **实时管线** | 拆成「每张源图一次」+「每帧」两段路径，避免每帧重算源图外观特征 |
-| **中文网页 UI** | 纯标准库 `http.server`，**零额外 Web 依赖**（不会拖进第二个 numpy）|
 | **摄像头实时驱动** | 页面一打开就有摄像头预览，方便先把脸摆正 |
+| **中文网页界面** | 纯标准库 `http.server`，**零额外 Web 依赖** |
 | **多窗口观看** | 合成画面和摄像头各自可**在新标签页全屏打开** |
 | **隐私遮罩** | 摄像头小窗可一键遮罩，**不可逆马赛克**（详见下方）|
 | **关闭即清理** | 关掉程序时自动删除上传的照片和临时帧 |
 | **显卡自动适配** | 按 compute capability 自动选 CUDA 栈，**RTX 20 ~ 50 系都能跑** |
-| **诊断工具** | 环境自检、逐阶段测速、角度渲染、跨进程桥接 |
+| **一键安装** | 自动准备 Python、依赖与权重，无需手动配置 |
+| **诊断工具** | 环境自检、逐阶段测速 |
 
 ## 实测性能
 
@@ -164,6 +164,8 @@ powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -Reinstall
 Start_WebUI.bat
 ```
 
+> 更详细的分步说明、脚本开关与故障排查见 **[docs/DEPLOY.md](docs/DEPLOY.md)**。
+
 ### 6. 使用
 
 1. 浏览器打开后，右上角就有**实时摄像头预览** —— 先把脸摆进画面
@@ -209,23 +211,6 @@ Start_WebUI.bat
 
 ---
 
-## 关于「转头」
-
-**LivePortrait 本身就能很好地转大角度头。** 下面这组图是把**上游自己的
-`transform_keypoint` 一字未改**地调用、只替换 yaw 得到的：
-
-![上游角度测试](docs/upstream_angles.jpg)
-
-**yaw 0 / 30 / 45 / 60 / 75 / 90 —— 90° 仍是干净的侧脸。**
-
-开发过程中我曾错误地断言"形变框架做不到大角度转头"，
-**那其实是我代码的 bug**（算了旋转矩阵却没用）。完整记录见
-[docs/CORRECTION_HEAD_TURN.md](docs/CORRECTION_HEAD_TURN.md) —— 留着当反面教材。
-
-**真实的限制**是另一条：**源图自带的表情去不掉**，所以底图请用中性表情。
-
----
-
 ## 目录结构
 
 ```
@@ -247,12 +232,10 @@ Runtime-LivePortrait/
     download_weights.py        下载并校验权重
     check_env.py               环境自检（会指出栈选错了）
     speed_probe.py             逐阶段测速，定位瓶颈
-    render_angles.py           渲染不同转角（转头能力证据）
     run_webcam.py / run_video.py / pick_and_run.py
     frame_client.py / frame_worker.py   跨进程桥接
-    build_portable.py          生成零安装便携版
   portraits/                   底图（含 3 张内置样张）
-  docs/                        部署、性能、ONNX 实验、更正记录
+  docs/                        部署、性能说明
   LivePortrait/                上游代码（MIT），权重需自行下载
 ```
 
@@ -269,25 +252,6 @@ Runtime-LivePortrait/
 （Hugging Face / PyPI / PyTorch 官方索引），**转手环节为零**。
 
 `git clone` 下来只有 **约 47 MB**（不含权重与依赖）。
-
----
-
-## 便携版（可选）
-
-给**不能装任何东西**的场景（别人的电脑、公用机、U 盘）：
-
-```powershell
-python tools\build_portable.py --from-runtime <某个可用的 python 环境> --out D:\Portable
-```
-
-产出一个**自包含文件夹**：内含完整运行时 + 项目 + 权重 + `启动-便携版.bat`。
-
-- **零安装**：不写注册表、不改 PATH、不动系统 Python
-- **可搬走**：整个文件夹拷到任何位置（含 U 盘）都能用，全相对路径
-- **卸载**：删文件夹即可
-- 注意：**运行时必须是完整目录副本，不能是 venv** ——
-  venv 的 `pyvenv.cfg` 会记下创建它的绝对路径，换台电脑就会报
-  `No Python at '<原路径>'`。构建脚本有校验，会直接拒绝打包 venv。
 
 ---
 
